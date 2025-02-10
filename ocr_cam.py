@@ -133,7 +133,7 @@ def main():
 
     if extract_button:
         if image is None:
-            st.error("Please upload or capture an image first!")
+            st.error("Please upload or capture an image by clicking '>' !")
         else:
             try:
                 # Get image details
