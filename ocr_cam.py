@@ -16,6 +16,17 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 # Load Gemini model
 model = genai.GenerativeModel(model_name="gemini-2.0-flash")
 llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
+
+# Initialize session state variables if not already defined
+if "uploaded_file" not in st.session_state:
+    st.session_state.uploaded_file = None
+if "camera_image" not in st.session_state:
+    st.session_state.camera_image = None
+if "image_data" not in st.session_state:
+    st.session_state.image_data = None
+if "extracted_text" not in st.session_state:
+    st.session_state.extracted_text = None
+
 # Function to process uploaded images
 def input_image_details(uploaded_file):
     if uploaded_file is not None:
@@ -30,16 +41,15 @@ def get_gemini_response(image, prompt):
     response = model.generate_content((image[0], prompt))
     return response.text
 
-# Function to create FAISS vector database
 def store_text_in_embeddings(texts):
     embedding_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     vector_store = FAISS.from_texts(texts, embedding=embedding_model)
-    vector_store.save_local("faiss_file") 
+    vector_store.save_local("faiss_ind") 
 
 def extract_text(input):
     embedding_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001") 
 # -> Load FAISS vector store
-    vector_store = FAISS.load_local("faiss_file", embedding_model, allow_dangerous_deserialization=True)
+    vector_store = FAISS.load_local("faiss_ind", embedding_model, allow_dangerous_deserialization=True)
 # -> Perform similarity search
     retrieved_texts = vector_store.similarity_search(input)  
     if not retrieved_texts:
@@ -47,9 +57,6 @@ def extract_text(input):
         return
     extracted_text = retrieved_texts[0].page_content
     return extracted_text
-
-
-# Function to translate extracted text
 
 def translate_text(input,extracted_text):
     prompt_template = PromptTemplate(
@@ -89,32 +96,62 @@ def main():
     st.header("Extract and Translate Handwritten Text")
 
     with st.sidebar:
-        uploaded_file = st.camera_input("Capture")
-        summary_btn=st.button("Get Summary")
+        browse = st.file_uploader("Upload an image...", type=["jpg", "jpeg", "png", "webp"])
+        capture = st.camera_input("Capture an image")
+
+        # Store image when uploaded or captured
+        if browse is not None:
+            st.session_state.uploaded_file = browse
+            st.session_state.camera_image = None  # Reset camera input
+
+        if capture is not None:
+            st.session_state.camera_image = capture
+            st.session_state.uploaded_file = None  # Reset uploaded file
+
+        summary_btn = st.button("Get Summary")
         language = st.text_input("Enter the language to translate the extracted text into:")
         translate_button = st.button("Translate Text")
-        word=st.text_input("Enter the word to know its meaning ")
-        dict_btn=st.button("Dictionary")
-    
-    image = ""
+        word = st.text_input("Enter the word to know its meaning")
+        dict_btn = st.button("Dictionary")
 
-    if uploaded_file is not None:
-        image = Image.open(uploaded_file)
+    image = None  # Initialize image variable
+
+    # Check if an image is stored in session state and display it
+    if st.session_state.uploaded_file is not None:
+        image = Image.open(st.session_state.uploaded_file)
         st.image(image, caption="Uploaded Image", use_container_width=True)
+
+    elif st.session_state.camera_image is not None:
+        image = Image.open(st.session_state.camera_image)
+        st.image(image, caption="Captured Image", use_container_width=True)
+
+    else:
+        st.warning("No image uploaded or captured!")
+
     extract_button = st.button("Extract Text")
     input_prompt = """You are an expert in understanding handwritten text. Extract the complete text from the uploaded image."""
 
     if extract_button:
-        if uploaded_file is None:
-            st.error("Please upload an image first!")
+        if image is None:
+            st.error("Please upload or capture an image first!")
         else:
-            image_data = input_image_details(uploaded_file)
-            response = get_gemini_response(image_data, input_prompt)
-            store_text_in_embeddings([response])
-            st.subheader("Extracted Text:")
-            st.write(response)
+            try:
+                # Get image details
+                image_data = input_image_details(
+                    st.session_state.uploaded_file or st.session_state.camera_image
+                )
+                st.session_state.image_data = image_data
 
+                # Extract text
+                response = get_gemini_response(image_data, input_prompt)
+                store_text_in_embeddings([response])
+                st.session_state.extracted_text = response
 
+                st.subheader("Extracted Text:")
+                st.write(response)
+
+            except Exception as e:
+                st.error(f"Error extracting text: {e}")
     if translate_button:
         if not language:
             st.error("Please enter a language for translation!")
@@ -137,5 +174,5 @@ def main():
         else:
             Extract_text=extract_text(word)
             dictionary(word,Extract_text)
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
