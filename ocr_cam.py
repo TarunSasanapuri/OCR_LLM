@@ -9,6 +9,8 @@ from langchain.prompts import PromptTemplate
 from langchain.chains.llm import LLMChain
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from gtts import gTTS
+import tempfile
 
 # Configure Gemini API
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
@@ -67,6 +69,7 @@ def translate_text(input,extracted_text):
     response = chain.run(context=extracted_text, language=input)
     st.subheader("Translation:")
     st.write(response)
+    return response
 
 # Function to make context into summary
 def summary(extracted_text):
@@ -78,6 +81,7 @@ def summary(extracted_text):
     response = chain.run(context=extracted_text)
     st.subheader("Summary:")
     st.write(response)
+    return response
 
 # Function for Dictionary
 def dictionary(word,extracted_text):
@@ -89,6 +93,22 @@ def dictionary(word,extracted_text):
     response=chain.run(context=extracted_text,word=word)
     st.subheader("Dictionary")
     st.write(response)
+    return response
+
+def audio(text):
+    try:
+        tts = gTTS(text=text, lang='en')  # Convert text to speech
+
+        # Save audio to a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio:
+            filename = temp_audio.name
+            tts.save(filename)  # Save speech as an MP3 file
+
+        # Play the audio in Streamlit
+        st.audio(filename, format="audio/mp3")
+
+    except Exception as e:
+        st.error(f"Error generating audio: {e}")
 
 # Streamlit App UI
 def main():
@@ -133,7 +153,7 @@ def main():
 
     if extract_button:
         if image is None:
-            st.error("Please upload or capture an image by clicking '>' !")
+            st.error("Please do right click on this '<' and capture or upload the image.")
         else:
             try:
                 # Get image details
@@ -149,7 +169,7 @@ def main():
 
                 st.subheader("Extracted Text:")
                 st.write(response)
-
+                audio(response)
             except Exception as e:
                 st.error(f"Error extracting text: {e}")
     if translate_button:
@@ -157,22 +177,24 @@ def main():
             st.error("Please enter a language for translation!")
         else:
             Extract_text=extract_text(language)
-            translate_text(language,Extract_text)
-
+            response=translate_text(language,Extract_text)
+            audio(response)
 
     if summary_btn:
         try:
             Extract_text=extract_text('summary')
-            summary(Extract_text)
+            response=summary(Extract_text)
+            audio(response)
         except Exception as e:
             st.write("Get the context first")
-
+            
 
     if dict_btn and word:
         if not word:
             st.error("Please enter a word to know it's meaning!")
         else:
             Extract_text=extract_text(word)
-            dictionary(word,Extract_text)
+            response=dictionary(word,Extract_text)
+            audio(response)
 if __name__ == "__main__":
     main()
