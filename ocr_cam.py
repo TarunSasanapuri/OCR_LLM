@@ -118,7 +118,6 @@ def main():
     with st.sidebar:
         with st.expander("UPLOAD IMAGE FILE"):
             browse = st.file_uploader("Upload an image...", type=["jpg", "jpeg", "png", "webp"])
-        st.text("(OR)")
         with st.expander("CAMERA"):
             capture = st.camera_input("Capture an image")
 
