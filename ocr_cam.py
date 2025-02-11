@@ -116,8 +116,11 @@ def main():
     st.header("Extract and Translate Handwritten Text")
 
     with st.sidebar:
-        browse = st.file_uploader("Upload an image...", type=["jpg", "jpeg", "png", "webp"])
-        capture = st.camera_input("Capture an image")
+        with st.expander("UPLOAD IMAGE FILE"):
+            browse = st.file_uploader("Upload an image...", type=["jpg", "jpeg", "png", "webp"])
+        st.text("(OR)")
+        with st.expander("CAMERA"):
+            capture = st.camera_input("Capture an image")
 
         # Store image when uploaded or captured
         if browse is not None:
@@ -127,12 +130,14 @@ def main():
         if capture is not None:
             st.session_state.camera_image = capture
             st.session_state.uploaded_file = None  # Reset uploaded file
-
-        summary_btn = st.button("Get Summary")
-        language = st.text_input("Enter the language to translate the extracted text into:")
-        translate_button = st.button("Translate Text")
-        word = st.text_input("Enter the word to know its meaning")
-        dict_btn = st.button("Dictionary")
+        with st.expander("SUMMARY"):
+            summary_btn = st.button("Get Summary")
+        with st.expander("TRANSLATE"):
+            language = st.text_input("Enter the language to translate the extracted text into:")
+            translate_button = st.button("Translate Text")
+        with st.expander("DICTIONARY"):
+            word = st.text_input("Enter the word to know its meaning")
+            dict_btn = st.button("Dictionary")
 
     image = None  # Initialize image variable
 
@@ -153,7 +158,7 @@ def main():
 
     if extract_button:
         if image is None:
-            st.error("Please do right click on this '>' and capture or upload the image.")
+            st.error("Please do right click on this '<' and capture or upload the image.")
         else:
             try:
                 # Get image details
