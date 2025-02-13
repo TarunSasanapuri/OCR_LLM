@@ -117,9 +117,22 @@ def main():
 
     with st.sidebar:
         with st.expander("UPLOAD IMAGE FILE"):
+        
             browse = st.file_uploader("Upload an image...", type=["jpg", "jpeg", "png", "webp"])
-        with st.expander("CAMERA"):
-            capture = st.camera_input("Capture an image")
+            capture=None
+            # Camera button logic
+            if "camera_mode" not in st.session_state:
+                st.session_state.camera_mode = False  # Default: Camera is off
+            if st.button("Open Camera"):
+                st.session_state.camera_mode = True  # Enable camera mode
+            
+            # Only show camera input when button is clicked
+            if st.session_state.camera_mode:
+                capture = st.camera_input("Capture an image")
+                if capture is not None:
+                    st.session_state.camera_image = capture
+                    st.session_state.uploaded_file = None  # Reset uploaded file
+                    st.session_state.camera_mode = False  # Turn off camera after capture
 
         # Store image when uploaded or captured
         if browse is not None:
