@@ -84,7 +84,6 @@ def dictionary(word, extracted_text):
     return response
 
 def audio(text):
-    """FIXED: Added missing closing parenthesis"""
     try:
         tts = gTTS(text=text, lang='en')
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio:
@@ -96,13 +95,98 @@ def audio(text):
 
 # Streamlit App UI
 def main():
-    st.title("🖊️ MultiLanguage Text Extractor")
+    st.title("MultiLanguage Text Extractor")
     st.header("Extract and Translate Handwritten Text")
 
     # Sidebar
     with st.sidebar:
-        st.markdown("### 📁 Upload Image")
+        st.markdown("### Upload Image")
         browse = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png", "webp"])
         
-        # Camera logic
-        if st.button("📸 Open
+        # FIXED: Camera logic - line 108 syntax error resolved
+        if st.button("Open Camera"):
+            st.session_state.camera_mode = True
+        
+        if "camera_mode" not in st.session_state:
+            st.session_state.camera_mode = False
+            
+        if st.session_state.camera_mode:
+            capture = st.camera_input("Capture an image")
+            if capture is not None:
+                st.session_state.camera_image = capture
+                st.session_state.uploaded_file = None
+                st.session_state.camera_mode = False
+                st.rerun()
+
+        # Store uploaded file
+        if browse is not None and st.session_state.uploaded_file != browse:
+            st.session_state.uploaded_file = browse
+            st.session_state.camera_image = None
+            st.rerun()
+
+        st.divider()
+        
+        # Action buttons - only show if text extracted
+        if st.session_state.extracted_text:
+            with st.expander("SUMMARY"):
+                if st.button("Get Summary", key="summary"):
+                    summary(st.session_state.extracted_text)
+            
+            with st.expander("TRANSLATE"):
+                language = st.text_input("Enter target language:", key="language")
+                if st.button("Translate", key="translate") and language:
+                    translate_text(language, st.session_state.extracted_text)
+                elif st.button("Translate", key="translate"):
+                    st.error("Please enter a language!")
+            
+            with st.expander("DICTIONARY"):
+                word = st.text_input("Enter word to lookup:", key="word")
+                if st.button("Get Meaning", key="dictionary") and word:
+                    dictionary(word, st.session_state.extracted_text)
+                elif st.button("Get Meaning", key="dictionary"):
+                    st.error("Please enter a word!")
+
+    # Display image
+    image = None
+    if st.session_state.uploaded_file is not None:
+        image = Image.open(st.session_state.uploaded_file)
+        st.image(image, caption="Uploaded Image", use_container_width=True)
+    elif st.session_state.camera_image is not None:
+        image = Image.open(st.session_state.camera_image)
+        st.image(image, caption="Captured Image", use_container_width=True)
+    else:
+        st.warning("Please upload or capture an image first!")
+
+    # Extract button
+    if st.button("Extract Text", type="primary"):
+        if image is None:
+            st.error("Please upload or capture an image first!")
+            return
+        with st.spinner("Extracting text..."):
+            try:
+                image_data = input_image_details(
+                    st.session_state.uploaded_file or st.session_state.camera_image
+                )
+                if image_data:
+                    input_prompt = """You are an expert in understanding handwritten text. 
+                    Extract the complete text from the uploaded image accurately."""
+                    
+                    response = get_gemini_response(image_data, input_prompt)
+                    store_text_in_embeddings([response])
+                    st.session_state.extracted_text = response
+                    
+                    st.success("Text extracted successfully!")
+                    st.subheader("Extracted Text:")
+                    st.write(response)
+                    audio(response)
+                else:
+                    st.error("Could not process image data.")
+            except Exception as e:
+                st.error(f"Error extracting text: {str(e)}")
+
+    # Show status
+    if st.session_state.extracted_text:
+        st.success(f"Ready for processing! Text length: {len(st.session_state.extracted_text)} chars")
+
+if __name__ == "__main__":
+    main()
