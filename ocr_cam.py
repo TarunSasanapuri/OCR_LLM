@@ -83,4 +83,26 @@ def dictionary(word, extracted_text):
     audio(response)
     return response
 
-def audio(text
+def audio(text):
+    """FIXED: Added missing closing parenthesis"""
+    try:
+        tts = gTTS(text=text, lang='en')
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio:
+            filename = temp_audio.name
+            tts.save(filename)
+        st.audio(filename, format="audio/mp3")
+    except Exception as e:
+        st.error(f"Error generating audio: {e}")
+
+# Streamlit App UI
+def main():
+    st.title("🖊️ MultiLanguage Text Extractor")
+    st.header("Extract and Translate Handwritten Text")
+
+    # Sidebar
+    with st.sidebar:
+        st.markdown("### 📁 Upload Image")
+        browse = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png", "webp"])
+        
+        # Camera logic
+        if st.button("📸 Open
